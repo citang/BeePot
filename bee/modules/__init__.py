@@ -6,8 +6,8 @@ from twisted.application import internet
 from twisted.internet.protocol import Factory
 from twisted.internet.protocol import DatagramProtocol
 
-from opencanary.honeycred import *
-from opencanary.iphelper import *
+from bee.honeycred import *
+from bee.iphelper import *
 
 # Monkey-patch-replace Twisted Protocol with CanaryProtocol class
 from twisted.internet import protocol
