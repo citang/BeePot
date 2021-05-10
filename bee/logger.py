@@ -1,21 +1,24 @@
-from __future__ import print_function
 import simplejson as json
 import logging.config
 import socket
 import hpfeeds
 import sys
+import requests
 
 from datetime import datetime
 from logging.handlers import SocketHandler
 from twisted.internet import reactor
-import requests
+from apscheduler.schedulers.twisted import TwistedScheduler
+
 
 class Singleton(type):
     _instances = {}
+
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
             cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
         return cls._instances[cls]
+
 
 def getLogger(config):
     try:
@@ -47,60 +50,60 @@ def getLogger(config):
 
     return logger
 
+
 class LoggerBase(object):
-    LOG_BASE_BOOT                               = 1000
-    LOG_BASE_MSG                                = 1001
-    LOG_BASE_DEBUG                              = 1002
-    LOG_BASE_ERROR                              = 1003
-    LOG_BASE_PING                               = 1004
-    LOG_BASE_CONFIG_SAVE                        = 1005
-    LOG_BASE_EXAMPLE                            = 1006
-    LOG_FTP_LOGIN_ATTEMPT                       = 2000
-    LOG_HTTP_GET                                = 3000
-    LOG_HTTP_POST_LOGIN_ATTEMPT                 = 3001
-    LOG_SSH_NEW_CONNECTION                      = 4000
-    LOG_SSH_REMOTE_VERSION_SENT                 = 4001
-    LOG_SSH_LOGIN_ATTEMPT                       = 4002
-    LOG_SMB_FILE_OPEN                           = 5000
-    LOG_PORT_SYN                                = 5001
-    LOG_PORT_NMAPOS                             = 5002
-    LOG_PORT_NMAPNULL                           = 5003
-    LOG_PORT_NMAPXMAS                           = 5004
-    LOG_PORT_NMAPFIN                            = 5005
-    LOG_TELNET_LOGIN_ATTEMPT                    = 6001
-    LOG_HTTPPROXY_LOGIN_ATTEMPT                 = 7001
-    LOG_MYSQL_LOGIN_ATTEMPT                     = 8001
-    LOG_MSSQL_LOGIN_SQLAUTH                     = 9001
-    LOG_MSSQL_LOGIN_WINAUTH                     = 9002
-    LOG_TFTP                                    = 10001
-    LOG_NTP_MONLIST                             = 11001
-    LOG_VNC                                     = 12001
-    LOG_SNMP_CMD                                = 13001
-    LOG_RDP                                     = 14001
-    LOG_SIP_REQUEST                             = 15001
-    LOG_GIT_CLONE_REQUEST                       = 16001
-    LOG_REDIS_COMMAND                           = 17001
-    LOG_TCP_BANNER_CONNECTION_MADE              = 18001
-    LOG_TCP_BANNER_KEEP_ALIVE_CONNECTION_MADE   = 18002
-    LOG_TCP_BANNER_KEEP_ALIVE_SECRET_RECEIVED   = 18003
-    LOG_TCP_BANNER_KEEP_ALIVE_DATA_RECEIVED     = 18004
-    LOG_TCP_BANNER_DATA_RECEIVED                = 18005
-    LOG_USER_0                                  = 99000
-    LOG_USER_1                                  = 99001
-    LOG_USER_2                                  = 99002
-    LOG_USER_3                                  = 99003
-    LOG_USER_4                                  = 99004
-    LOG_USER_5                                  = 99005
-    LOG_USER_6                                  = 99006
-    LOG_USER_7                                  = 99007
-    LOG_USER_8                                  = 99008
-    LOG_USER_9                                  = 99009
+    LOG_BASE_BOOT = 1000
+    LOG_BASE_MSG = 1001
+    LOG_BASE_DEBUG = 1002
+    LOG_BASE_ERROR = 1003
+    LOG_BASE_PING = 1004
+    LOG_BASE_CONFIG_SAVE = 1005
+    LOG_BASE_EXAMPLE = 1006
+    LOG_FTP_LOGIN_ATTEMPT = 2000
+    LOG_HTTP_GET = 3000
+    LOG_HTTP_POST_LOGIN_ATTEMPT = 3001
+    LOG_SSH_NEW_CONNECTION = 4000
+    LOG_SSH_REMOTE_VERSION_SENT = 4001
+    LOG_SSH_LOGIN_ATTEMPT = 4002
+    LOG_SMB_FILE_OPEN = 5000
+    LOG_PORT_SYN = 5001
+    LOG_PORT_NMAPOS = 5002
+    LOG_PORT_NMAPNULL = 5003
+    LOG_PORT_NMAPXMAS = 5004
+    LOG_PORT_NMAPFIN = 5005
+    LOG_TELNET_LOGIN_ATTEMPT = 6001
+    LOG_HTTPPROXY_LOGIN_ATTEMPT = 7001
+    LOG_MYSQL_LOGIN_ATTEMPT = 8001
+    LOG_MSSQL_LOGIN_SQLAUTH = 9001
+    LOG_MSSQL_LOGIN_WINAUTH = 9002
+    LOG_TFTP = 10001
+    LOG_NTP_MONLIST = 11001
+    LOG_VNC = 12001
+    LOG_SNMP_CMD = 13001
+    LOG_RDP = 14001
+    LOG_SIP_REQUEST = 15001
+    LOG_GIT_CLONE_REQUEST = 16001
+    LOG_REDIS_COMMAND = 17001
+    LOG_TCP_BANNER_CONNECTION_MADE = 18001
+    LOG_TCP_BANNER_KEEP_ALIVE_CONNECTION_MADE = 18002
+    LOG_TCP_BANNER_KEEP_ALIVE_SECRET_RECEIVED = 18003
+    LOG_TCP_BANNER_KEEP_ALIVE_DATA_RECEIVED = 18004
+    LOG_TCP_BANNER_DATA_RECEIVED = 18005
+    LOG_USER_0 = 99000
+    LOG_USER_1 = 99001
+    LOG_USER_2 = 99002
+    LOG_USER_3 = 99003
+    LOG_USER_4 = 99004
+    LOG_USER_5 = 99005
+    LOG_USER_6 = 99006
+    LOG_USER_7 = 99007
+    LOG_USER_8 = 99008
+    LOG_USER_9 = 99009
 
     def sanitizeLog(self, logdata):
         logdata['node_id'] = self.node_id
         logdata['local_time'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
-        logdata['utc_time'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
-        logdata['local_time_adjusted'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+
         if 'src_host' not in logdata:
             logdata['src_host'] = ''
         if 'src_port' not in logdata:
@@ -115,6 +118,7 @@ class LoggerBase(object):
             logdata['logdata'] = {}
         return logdata
 
+
 class PyLogger(LoggerBase):
     """
     Generic python logging
@@ -123,6 +127,7 @@ class PyLogger(LoggerBase):
 
     def __init__(self, config, handlers, formatters={}):
         self.node_id = config.getVal('device.node_id')
+        self.serverip = config.getVal('server.ip')
 
         # Build config dict to initialise
         # Ensure all handlers don't drop logs based on severity level
@@ -131,11 +136,11 @@ class PyLogger(LoggerBase):
 
         logconfig = {
             "version": 1,
-            "formatters" : formatters,
+            "formatters": formatters,
             "handlers": handlers,
             # initialise all defined logger handlers
             "loggers": {
-                self.node_id : {
+                self.node_id: {
                     "handlers": handlers.keys()
                 }
             }
@@ -157,16 +162,35 @@ class PyLogger(LoggerBase):
         print(msg, file=sys.stderr)
         self.logger.warn(msg)
 
+    def post2server(self, serverip, jsondata):
+        try:
+            import urllib2
+            url = 'http://' + serverip + '/log/'
+            req = urllib2.Request(url, jsondata, {'Content-Type': 'application/json'})
+            f = urllib2.urlopen(req)
+            response = f.read()
+            self.logger.warn(response)
+            f.close()
+        except urllib2.URLError as e:
+            self.logger.error(e)
+
     def log(self, logdata, retry=True):
         logdata = self.sanitizeLog(logdata)
-        self.logger.warn(json.dumps(logdata, sort_keys=True))
+        jsondata = json.dumps(logdata, sort_keys=True)
+        if logdata['src_host'] != '127.0.0.1' and logdata['dst_host'] != '':
+            import uuid
+            scheduler = TwistedScheduler()
+            scheduler.add_job(self.post2server, args=[self.serverip, jsondata], id=str(uuid.uuid1()))
+            scheduler.start()
+        elif logdata['src_host'] != '127.0.0.1':
+            self.logger.warn(jsondata)
 
 
 class SocketJSONHandler(SocketHandler):
     """Emits JSON messages over TCP delimited by newlines ('\n')"""
 
     def makeSocket(self, timeout=1):
-        s = SocketHandler.makeSocket(self,timeout)
+        s = SocketHandler.makeSocket(self, timeout)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         return s
 
@@ -204,79 +228,20 @@ class SocketJSONHandler(SocketHandler):
 
 
 class HpfeedsHandler(logging.Handler):
-    def __init__(self,host,port,ident, secret,channels):
+    def __init__(self, host, port, ident, secret, channels):
         logging.Handler.__init__(self)
-        self.host=str(host)
-        self.port=int(port)
-        self.ident=str(ident)
-        self.secret=str(secret)
-        self.channels=map(str,channels)
-        hpc=hpfeeds.new(self.host, self.port, self.ident, self.secret)
+        self.host = str(host)
+        self.port = int(port)
+        self.ident = str(ident)
+        self.secret = str(secret)
+        self.channels = map(str, channels)
+        hpc = hpfeeds.new(self.host, self.port, self.ident, self.secret)
         hpc.subscribe(channels)
-        self.hpc=hpc
+        self.hpc = hpc
 
     def emit(self, record):
         try:
             msg = self.format(record)
-            self.hpc.publish(self.channels,msg)
+            self.hpc.publish(self.channels, msg)
         except:
             print("Error on publishing to server")
-
-class SlackHandler(logging.Handler):
-    def __init__(self,webhook_url):
-        logging.Handler.__init__(self)
-        self.webhook_url=webhook_url
-
-    def generate_msg(self, alert):
-        msg = {}
-        msg['pretext'] = "OpenCanary Alert"
-        data=json.loads(alert.msg)
-        msg['fields']=[]
-        for k,v in data.items():
-            msg['fields'].append({'title':k, 'value':json.dumps(v) if type(v) is dict else v})
-        return {'attachments':[msg]}
-
-    def emit(self, record):
-        data = self.generate_msg(record)
-        response = requests.post(
-            self.webhook_url, json=data
-            )
-        if response.status_code != 200:
-            print("Error %s sending Slack message, the response was:\n%s" % (response.status_code, response.text))
-
-class TeamsHandler(logging.Handler):
-    def __init__(self,webhook_url):
-        logging.Handler.__init__(self)
-        self.webhook_url=webhook_url
-
-    def message(self, data):
-        message = {
-            "@type": "MessageCard",
-            "@context": "http://schema.org/extensions",
-            "themeColor": "49c176",
-            "summary": "OpenCanary Notification",
-            "title": "OpenCanary Alert",
-            "sections": [{
-                "facts": self.facts(data)
-            }]
-        }
-        return message
-
-    def facts(self, data, prefix=None):
-        facts = []
-        for k, v in data.items():
-            key = str(k).lower() if prefix is None else prefix + '__' + str(k).lower()
-            if type(v) is not dict:
-                facts.append({"name": key, "value": str(v)})
-            else:
-                nested = self.facts(v, key)
-                facts.extend(nested)
-        return facts
-
-    def emit(self, record):
-        data = json.loads(record.msg)
-        payload = self.message(data)
-        headers = {'Content-Type': 'application/json'}
-        response = requests.post(self.webhook_url, headers=headers, json=payload)
-        if response.status_code != 200:
-            print("Error %s sending Teams message, the response was:\n%s" % (response.status_code, response.text))

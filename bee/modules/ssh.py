@@ -1,27 +1,28 @@
 from __future__ import print_function
 from bee.modules import BeeService
 
+import os
+import time
+import base64
+import struct
 import twisted
+
 from twisted.cred import portal, checkers, credentials, error
 from twisted.conch import error, avatar, interfaces as conchinterfaces
-from twisted.conch.checkers import SSHPublicKeyDatabase
 from twisted.conch.ssh import factory, userauth, connection, keys, session, transport
 from twisted.conch.openssh_compat import primes
 from twisted.conch.ssh.common import MP
-from twisted.internet import reactor, protocol, defer
-from twisted. application import internet
-
+from twisted.internet import defer
+from twisted.application import internet
+from twisted.conch.ssh.common import NS, getNS
 from zope.interface import implementer
-import sys, os, time
-import base64, struct
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import dsa, rsa
 
-SSH_PATH="/var/tmp"
+SSH_PATH = "/var/tmp"
 
-#pulled from Kippo
-from twisted.conch.ssh.common import NS, getNS
+
 class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
     def serviceStarted(self):
         userauth.SSHUserAuthServer.serviceStarted(self)
@@ -38,7 +39,7 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
             src_port=peer.address.port,
             dst_host=us.address.host,
             dst_port=us.address.port
-        )
+            )
 
         self.bannerSent = False
 
@@ -64,8 +65,9 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
         us = self.transport.getHost()
         peer = self.transport.getPeer()
 
-        logdata = {'USERNAME': self.user, 'PASSWORD': password, 'LOCALVERSION': self.transport.ourVersionString, 'REMOTEVERSION': self.transport.otherVersionString}
-        logtype =  self.transport.factory.canaryservice.logger.LOG_SSH_LOGIN_ATTEMPT
+        logdata = {'USERNAME': self.user, 'PASSWORD': password, 'LOCALVERSION': self.transport.ourVersionString,
+                   'REMOTEVERSION': self.transport.otherVersionString}
+        logtype = self.transport.factory.canaryservice.logger.LOG_SSH_LOGIN_ATTEMPT
 
         log = self.transport.factory.canaryservice.log
         log(logdata,
@@ -76,53 +78,54 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
             dst_port=us.address.port)
 
         return self.portal.login(c, None, conchinterfaces.IConchUser).addErrback(
-                                                        self._ebPassword)
+            self._ebPassword)
 
     def auth_publickey(self, packet):
 
         try:
-            #extract the public key blob from the SSH packet
+            # extract the public key blob from the SSH packet
             key_blob = getNS(getNS(packet[1:])[1])[0]
         except:
             key_blob = "No public key found."
 
         try:
-            #convert blob into openssh key format
+            # convert blob into openssh key format
             key = keys.Key.fromString(key_blob).toString('openssh')
         except:
             key = "Invalid SSH Public Key Submitted: {key_blob}".format(key_blob=key_blob.encode('hex'))
-            for keytype in ['ecdsa-sha2-nistp256','ecdsa-sha2-nistp384','ecdsa-sha2-nistp521','ssh-ed25519']:
+            for keytype in ['ecdsa-sha2-nistp256', 'ecdsa-sha2-nistp384', 'ecdsa-sha2-nistp521', 'ssh-ed25519']:
                 if keytype in key_blob:
                     key = '{keytype} {keydata}'.format(
-                            keytype=keytype,
-                            keydata=base64.b64encode(key_blob))
+                        keytype=keytype,
+                        keydata=base64.b64encode(key_blob))
 
             print('Key was {key}'.format(key=key))
 
-        c = credentials.SSHPrivateKey(None,None,None,None,None)
+        c = credentials.SSHPrivateKey(None, None, None, None, None)
 
-        #self.log(key=key)
+        # self.log(key=key)
 
         return self.portal.login(c, None, conchinterfaces.IConchUser).addErrback(
-                                                        self._ebPassword)
+            self._ebPassword)
 
     def ssh_USERAUTH_REQUEST(self, packet):
         self.sendBanner()
         return userauth.SSHUserAuthServer.ssh_USERAUTH_REQUEST(self, packet)
+
 
 # As implemented by Kojoney
 class HoneyPotSSHFactory(factory.SSHFactory):
     services = {
         b'ssh-userauth': HoneyPotSSHUserAuthServer,
         b'ssh-connection': connection.SSHConnection,
-        }
+    }
 
     # Special delivery to the loggers to avoid scope problems
     def logDispatch(self, sessionid, msg):
         data = {}
         data['logdata'] = msg
         self.logger.log(data)
-        #for dblog in self.dbloggers:
+        # for dblog in self.dbloggers:
         #    dblog.logDispatch(sessionid, msg)
 
     def __init__(self, logger=None, version=None):
@@ -168,12 +171,12 @@ class HoneyPotRealm:
     def requestAvatar(self, avatarId, mind, *interfaces):
         if conchinterfaces.IConchUser in interfaces:
             return interfaces[0], \
-                HoneyPotAvatar(avatarId, self.env), lambda: None
+                   HoneyPotAvatar(avatarId, self.env), lambda: None
         else:
             raise Exception("No supported interfaces found.")
 
-class HoneyPotTransport(transport.SSHServerTransport):
 
+class HoneyPotTransport(transport.SSHServerTransport):
     hadVersion = False
 
     def connectionMade(self):
@@ -204,15 +207,15 @@ class HoneyPotTransport(transport.SSHServerTransport):
             self.hadVersion = True
 
     def ssh_KEXINIT(self, packet):
-        #print('Remote SSH version: %s' % (self.otherVersionString,))
+        # print('Remote SSH version: %s' % (self.otherVersionString,))
         return transport.SSHServerTransport.ssh_KEXINIT(self, packet)
 
     def ssh_KEX_DH_GEX_REQUEST(self, packet):
         MSG_KEX_DH_GEX_GROUP = 31
-        #We have to override this method since the original will
-        #pick the client's ideal DH group size. For some SSH clients, this is
-        #8192 bits, which takes minutes to compute. Instead, we pick the minimum,
-        #which on our test client was 1024.
+        # We have to override this method since the original will
+        # pick the client's ideal DH group size. For some SSH clients, this is
+        # 8192 bits, which takes minutes to compute. Instead, we pick the minimum,
+        # which on our test client was 1024.
         if self.ignoreNextPacket:
             self.ignoreNextPacket = 0
             return
@@ -223,12 +226,12 @@ class HoneyPotTransport(transport.SSHServerTransport):
 
     def lastlogExit(self):
         starttime = time.strftime('%a %b %d %H:%M',
-            time.localtime(self.logintime))
+                                  time.localtime(self.logintime))
         endtime = time.strftime('%H:%M',
-            time.localtime(time.time()))
+                                time.localtime(time.time()))
         duration = str((time.time() - self.logintime))
         clientIP = self.transport.getPeer().host
-        #print('root\tpts/0\t%s\t%s - %s (%s)' % \
+        # print('root\tpts/0\t%s\t%s - %s (%s)' % \
         #    (clientIP, starttime, endtime, duration))
 
     # this seems to be the only reliable place of catching lost connection
@@ -237,7 +240,7 @@ class HoneyPotTransport(transport.SSHServerTransport):
             i.sessionClosed()
         if self.transport.sessionno in self.factory.sessions:
             del self.factory.sessions[self.transport.sessionno]
-        #self.lastlogExit()
+        # self.lastlogExit()
         if self.ttylog_open:
             ttylog.ttylog_close(self.ttylog_file, time.time())
             self.ttylog_open = False
@@ -259,12 +262,13 @@ class HoneyPotTransport(transport.SSHServerTransport):
         else:
             self.transport.write('Protocol mismatch.\n')
             log.msg('Disconnecting with error, code %s\nreason: %s' % \
-                (reason, desc))
+                    (reason, desc))
             self.transport.loseConnection()
+
 
 class HoneyPotSSHSession(session.SSHSession):
     def request_env(self, data):
-        #print('request_env: %s' % (repr(data)))
+        # print('request_env: %s' % (repr(data)))
         pass
 
 
@@ -366,7 +370,6 @@ def getDSAKeys():
 
 @implementer(checkers.ICredentialsChecker)
 class HoneypotPasswordChecker:
-
     credentialInterfaces = (credentials.IUsernamePassword,)
 
     def __init__(self, logger=None):
@@ -379,7 +382,6 @@ class HoneypotPasswordChecker:
 
 @implementer(checkers.ICredentialsChecker)
 class CanaryPublicKeyChecker:
-
     credentialInterfaces = (credentials.ISSHPrivateKey,)
 
     def __init__(self, logger=None):
@@ -395,7 +397,7 @@ class BeeSSH(BeeService):
 
     def __init__(self, config=None, logger=None):
         BeeService.__init__(self, config=config, logger=logger)
-        self.port = int(config.getVal("ssh.port", default=22))
+        self.port = int(config.getVal("ssh.port", default=223))
         self.version = config.getVal("ssh.version", default="SSH-2.0-OpenSSH_5.1p1 Debian-5").encode('utf8')
         self.listen_addr = config.getVal('device.listen_addr', default='')
 
