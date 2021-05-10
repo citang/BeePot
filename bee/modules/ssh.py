@@ -390,7 +390,7 @@ class CanaryPublicKeyChecker:
         return defer.fail(error.UnauthorizedLogin())
 
 
-class CanarySSH(BeeService):
+class BeeSSH(BeeService):
     NAME = 'ssh'
 
     def __init__(self, config=None, logger=None):
