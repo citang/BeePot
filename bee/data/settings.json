@@ -1,7 +1,7 @@
 {
     "device.node_id": "bee-1",
     "server.ip": "47.114.162.200",
-    "device.listen_addr": "127.0.0.1",
+    "device.listen_addr": "172.29.106.35",
     "ip.ignorelist": [  ],
     "logger": {
         "class": "PyLogger",
