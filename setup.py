@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 import bee
 
 requirements = [
-    'Twisted==21.2.0',
+    'Twisted==19.10.0',
     'pyasn1==0.4.5',
     'cryptography==3.0',
     'simplejson==3.16.0',
