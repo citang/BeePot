@@ -105,7 +105,7 @@ class LoggerBase(object):
         logdata['local_time'] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S.%f")
 
         if 'src_host' not in logdata:
-            logdata['src_host'] = ''
+            logdata['src_host'] = '000000'
         if 'src_port' not in logdata:
             logdata['src_port'] = -1
         if 'dst_host' not in logdata:
