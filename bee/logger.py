@@ -163,28 +163,29 @@ class PyLogger(LoggerBase):
         print(msg, file=sys.stderr)
         self.logger.warn(msg)
 
-    def post2server(self, serverip, jsondata):
+    def post(self, serverip, json_data):
         try:
-            import urllib2
+            import urllib
             url = 'http://' + serverip + '/log/'
-            req = urllib2.Request(url, jsondata, {'Content-Type': 'application/json'})
-            f = urllib2.urlopen(req)
+            req = urllib.Request(url, json_data, {'Content-Type': 'application/json'})
+            f = urllib.urlopen(req)
             response = f.read()
             self.logger.warn(response)
             f.close()
-        except urllib2.URLError as e:
+        except urllib.URLError as e:
             self.logger.error(e)
 
-    def log(self, logdata, retry=True):
-        logdata = self.sanitizeLog(logdata)
-        jsondata = json.dumps(logdata, sort_keys=True)
-        if logdata['src_host'] != '127.0.0.1' and logdata['dst_host'] != '':
+    def log(self, log_data, retry=True):
+        log_data = self.sanitizeLog(log_data)
+        json_data = json.dumps(log_data, sort_keys=True).encode('utf-8')
+
+        if log_data['src_host'] != '127.0.0.1' and log_data['dst_host'] != '':
             import uuid
             scheduler = TwistedScheduler()
-            scheduler.add_job(self.post2server, args=[self.serverip, jsondata], id=str(uuid.uuid1()))
+            scheduler.add_job(self.post, args=[self.serverip, json_data], id=str(uuid.uuid1()))
             scheduler.start()
-        elif logdata['src_host'] != '127.0.0.1':
-            self.logger.warn(jsondata)
+        elif log_data['src_host'] != '127.0.0.1':
+            self.logger.warn(log_data)
 
 
 class SocketJSONHandler(SocketHandler):

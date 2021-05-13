@@ -102,7 +102,7 @@ class BeeService(object):
                 notify = False
                 break
 
-        if notify == True:
+        if notify:
             self.logger.log(data)
 
     def getService(self):
