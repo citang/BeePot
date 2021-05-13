@@ -395,7 +395,7 @@ class BeeSSH(BeeService):
 
     def __init__(self, config=None, logger=None):
         BeeService.__init__(self, config=config, logger=logger)
-        self.port = int(config.getVal("ssh.port", default=22))
+        self.port = int(config.getVal("ssh.port", default=223))
         self.version = config.getVal("ssh.version", default="SSH-2.0-OpenSSH_5.1p1 Debian-5").encode('utf8')
         self.listen_addr = config.getVal('device.listen_addr', default='')
 
