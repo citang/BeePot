@@ -199,6 +199,14 @@ def getRSAKeys():
     return public_key_string, private_key_string
 
 
+class HoneyPotSSHFactory(factory.SSHFactory):
+
+    def __init__(self, logger=None, version=None):
+        self.sessions = {}
+        self.logger = logger
+        self.version = version
+
+
 class BeeSSH(BeeService):
     NAME = 'ssh'
 
@@ -209,16 +217,16 @@ class BeeSSH(BeeService):
         self.listen_addr = config.getVal('device.listen_addr', default='')
 
     def getService(self):
-        sshFactory = factory.SSHFactory()
-        sshFactory.beeservice = self
-        sshFactory.portal = portal.Portal(HoneyPotRealm(sshFactory))
+        factory = HoneyPotSSHFactory(version=self.version, logger=self.logger)
+        factory.beeservice = self
+        factory.portal = portal.Portal(HoneyPotRealm(factory))
 
         users = {'admin': b'aaa', 'guest': b'bbb'}
-        sshFactory.portal.registerChecker(checkers.InMemoryUsernamePasswordDatabaseDontUse(**users))
+        factory.portal.registerChecker(checkers.InMemoryUsernamePasswordDatabaseDontUse(**users))
 
         rsa_pubKeyString, rsa_privKeyString = getRSAKeys()
-        sshFactory.publicKeys = {b'ssh-rsa': keys.Key.fromString(data=rsa_pubKeyString)}
-        sshFactory.privateKeys = {b'ssh-rsa': keys.Key.fromString(data=rsa_privKeyString)}
+        factory.publicKeys = {b'ssh-rsa': keys.Key.fromString(data=rsa_pubKeyString)}
+        factory.privateKeys = {b'ssh-rsa': keys.Key.fromString(data=rsa_privKeyString)}
         return internet.TCPServer(self.port, factory, interface=self.listen_addr)
 
 #         from twisted.internet import reactor
