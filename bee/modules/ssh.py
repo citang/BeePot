@@ -25,8 +25,9 @@ SSH_PATH = "/var/tmp"
 
 class HoneyPotProtocol(recvline.HistoricRecvLine):
 
-    def __init__(self, user):
+    def __init__(self, user, env):
         self.user = user
+        self.env = env
 
     def connectionMade(self):
         recvline.HistoricRecvLine.connectionMade(self)
@@ -39,6 +40,21 @@ class HoneyPotProtocol(recvline.HistoricRecvLine):
         self.terminal.write("$ ")
 
     def getCommandFunc(self, cmd):
+        """记录操作"""
+        self
+        log_data = {
+            'cmd': bytes.decode(cmd),
+            'local_version': self.user.conn.transport.ourVersionString,
+            'remote_version': self.user.conn.transport.otherVersionString
+        }
+        log_type = self.user.factory.beeservice.logger.LOG_SSH_CMD
+        log = self.user.factory.beeservice.log
+        log(log_data, logtype=log_type,
+            src_host=self.env['src_host'],
+            src_port=self.env['src_port'],
+            dst_host=self.env['dst_host'],
+            dst_port=self.env['dst_port'])
+
         return getattr(self, 'do_' + bytes.decode(cmd), None)
 
     def lineReceived(self, line):
@@ -122,8 +138,8 @@ class HoneyPotAvatar(avatar.ConchUser):
         peer = session.SSHSession.getPeer(self)
         log_data = {
             'USERNAME': self.username,
-            'LOCALVERSION': self.conn.transport.ourVersionString,
-            'REMOTEVERSION': self.conn.transport.otherVersionString}
+            'local_version': self.conn.transport.ourVersionString,
+            'remote_version': self.conn.transport.otherVersionString}
         log_type = self.factory.beeservice.logger.LOG_SSH_NEW_CONNECTION
         log = self.factory.beeservice.log
         log(log_data, logtype=log_type,
@@ -132,7 +148,14 @@ class HoneyPotAvatar(avatar.ConchUser):
             dst_host=us.address.host,
             dst_port=us.address.port)
 
-        serverProtocol = insults.ServerProtocol(HoneyPotProtocol, self)
+        env = {
+            'src_host': peer.address.host,
+            'src_port': peer.address.port,
+            'dst_host': us.address.host,
+            'dst_port': us.address.port,
+        }
+
+        serverProtocol = insults.ServerProtocol(HoneyPotProtocol, self, env)
         serverProtocol.makeConnection(protocol)
         protocol.makeConnection(session.wrapProtocol(serverProtocol))
 
@@ -198,12 +221,12 @@ class BeeSSH(BeeService):
         sshFactory.privateKeys = {b'ssh-rsa': keys.Key.fromString(data=rsa_privKeyString)}
         return internet.TCPServer(self.port, factory, interface=self.listen_addr)
 
-        # from twisted.internet import reactor
-        # print("start")
-        # reactor.listenTCP(3333, sshFactory)
-        # reactor.run()
-
-
+#         from twisted.internet import reactor
+#         print("start")
+#         reactor.listenTCP(3333, sshFactory)
+#         reactor.run()
+#
+#
 # if __name__ == '__main__':
 #     from bee.config import config
 #     from bee.logger import getLogger

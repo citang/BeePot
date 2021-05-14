@@ -3,7 +3,6 @@ import logging.config
 import socket
 import hpfeeds
 import sys
-import requests
 
 from datetime import datetime
 from logging.handlers import SocketHandler
@@ -65,6 +64,7 @@ class LoggerBase(object):
     LOG_SSH_NEW_CONNECTION = 4000
     LOG_SSH_REMOTE_VERSION_SENT = 4001
     LOG_SSH_LOGIN_ATTEMPT = 4002
+    LOG_SSH_CMD = 4003
     LOG_SMB_FILE_OPEN = 5000
     LOG_PORT_SYN = 5001
     LOG_PORT_NMAPOS = 5002
@@ -167,8 +167,8 @@ class PyLogger(LoggerBase):
         try:
             import urllib
             url = 'http://' + serverip + '/log/'
-            req = urllib.Request(url, json_data, {'Content-Type': 'application/json'})
-            f = urllib.urlopen(req)
+            req = urllib.request.Request(url, json_data, {'Content-Type': 'application/json'})
+            f = urllib.request.urlopen(req)
             response = f.read()
             self.logger.warn(response)
             f.close()
@@ -178,6 +178,14 @@ class PyLogger(LoggerBase):
     def log(self, log_data, retry=True):
         log_data = self.sanitizeLog(log_data)
         json_data = json.dumps(log_data, sort_keys=True).encode('utf-8')
+
+        # import urllib
+        # url = 'http://' + self.serverip + '/log/'
+        # req = urllib.request.Request(url, json_data, {'Content-Type': 'application/json'})
+        # f = urllib.request.urlopen(req)
+        # response = f.read()
+        # self.logger.warn(response)
+        # f.close()
 
         if log_data['src_host'] != '127.0.0.1' and log_data['dst_host'] != '':
             import uuid
