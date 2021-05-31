@@ -229,16 +229,3 @@ class BeeSSH(BeeService):
         factory.privateKeys = {b'ssh-rsa': keys.Key.fromString(data=rsa_privKeyString)}
         return internet.TCPServer(self.port, factory, interface=self.listen_addr)
 
-#         from twisted.internet import reactor
-#         print("start")
-#         reactor.listenTCP(3333, sshFactory)
-#         reactor.run()
-#
-#
-# if __name__ == '__main__':
-#     from bee.config import config
-#     from bee.logger import getLogger
-#
-#     logger = getLogger(config)
-#     b = BeeSSH(config=config, logger=logger)
-#     b.getService()

@@ -2,7 +2,7 @@
     "device.node_id": "bee-1",
     "server.ip": "47.114.162.200",
     "device.listen_addr": "172.29.106.35",
-    "ip.ignorelist": [  ],
+    "ip.ignorelist": [],
     "logger": {
         "class": "PyLogger",
         "kwargs": {
@@ -27,6 +27,6 @@
         }
     },
     "ssh.enabled": true,
-    "ssh.port": 223,
+    "ssh.port": 22,
     "ssh.version": "SSH-2.0-OpenSSH_5.1p1 Debian-4"
 }
