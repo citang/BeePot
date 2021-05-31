@@ -31,7 +31,7 @@ class Config:
         self.__configfile = configfile
 
         files = [configfile, "%s/.%s" % (expanduser("~"), configfile), "/etc/beed/%s"%configfile]
-        print("** We hope you enjoy using OpenCanary.**")
+        print("** We hope you enjoy using BeePot.**")
         for fname in files:
             try:
                 with open(fname, "r") as f:
@@ -47,7 +47,7 @@ class Config:
             except Exception as e:
                 print("[-] An error occured loading %s (%s)" % (fname, e))
         if self.__config is None:
-            print('No config file found. Please create one with "beed --copyconfig"')
+            print('No config file found. Please create one with "beed --config"')
             sys.exit(1)
 
     def moduleEnabled(self, module_name):

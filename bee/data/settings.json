@@ -27,6 +27,6 @@
         }
     },
     "ssh.enabled": true,
-    "ssh.port": 22,
+    "ssh.port": 223,
     "ssh.version": "SSH-2.0-OpenSSH_5.1p1 Debian-4"
 }
