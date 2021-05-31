@@ -7,7 +7,7 @@ from bee.config import config
 from bee.logger import getLogger
 from bee.modules.ssh import BeeSSH
 
-ENTRYPOINT = "bee.usermodule"
+ENTRYPOINT = "bee.module"
 MODULES = [BeeSSH]
 
 logger = getLogger(config)

@@ -6,12 +6,12 @@ cmd=$1
 
 function usage() {
     echo -e "\n  Bee v1.0\n"
-    echo -e "\t beed [ --start | --dev | --stop | --restart | --copyconfig | --usermodule | --help ]\n\n"
+    echo -e "\t beed [ --start | --dev | --stop | --restart | --config | --module | --help ]\n\n"
     echo -e "\t\t--start\tStarts the beed process"
     echo -e "\t\t--dev\tRun the beed process in the foreground"
     echo -e "\t\t--stop\tStops the beed process"
-    echo -e "\t\t--usermodule\tRun beed in foreground with only usermodules enabled"
-    echo -e "\t\t--copyconfig\tCreates a default config file at /etc/beed/bee.conf"
+    echo -e "\t\t--module\tRun beed in foreground with only modules enabled"
+    echo -e "\t\t--config\tCreates a default config file at /etc/beed/bee.conf"
     echo -e "\t\t--"
     echo -e "\t\t--help\tThis help\n"
 
@@ -21,8 +21,8 @@ if [ "${cmd}" == "--start" ]; then
     sudo "${DIR}/twistd" -y "${DIR}/bee.tac" --pidfile "${PIDFILE}" --syslog --prefix=beed
 elif [ "${cmd}" == "--dev" ]; then
     sudo "${DIR}/twistd" -noy "${DIR}/bee.tac"
-elif [ "${cmd}" == "--usermodule" ]; then
-  usermodconf=$(python -c "from __future__ import print_function; from pkg_resources import resource_filename; print(resource_filename('bee', 'data/settings-usermodule.json'))")
+elif [ "${cmd}" == "--module" ]; then
+  usermodconf=$(python -c "from __future__ import print_function; from pkg_resources import resource_filename; print(resource_filename('bee', 'data/settings-module.json'))")
 
   if [ -f bee.conf ]; then
     if ! diff -q bee.conf "${usermodconf}" 2>&1 >/dev/null; then
@@ -41,7 +41,7 @@ elif [ "${cmd}" == "--restart" ]; then
 elif [ "${cmd}" == "--stop" ]; then
     pid=`sudo cat "${PIDFILE}"`
     sudo kill "$pid"
-elif [ "${cmd}" == "--copyconfig" ]; then
+elif [ "${cmd}" == "--config" ]; then
     if [ -f /etc/beed/bee.conf ]; then
         echo "A config file already exists at /etc/beed/bee.conf, please move it first"
         exit 1
