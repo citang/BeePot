@@ -1,2 +1,2 @@
-# beepot
+# BeePot
 a honeypot demo
